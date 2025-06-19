@@ -1,10 +1,16 @@
 import streamlit as st
-from supabase import create_client, Client
+import requests
+import json
 
-# Replace with your Supabase project URL and anon key
-url = "https://vwtgxaglfqywgonyetjf.supabase.co"
-key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3dGd4YWdsZnF5d2dvbnlldGpmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAyNDQzMTksImV4cCI6MjA2NTgyMDMxOX0.WYZpvz61aVKJxNuOYcVxHu6kxLaQyMfGQwDfMBsrIw4"
-supabase: Client = create_client(url, key)
+# Replace with your Supabase details
+SUPABASE_URL = "https://vwtgxaglfqywgonyetjf.supabase.co"
+SUPABASE_KEY = "YOUR_ANON_KEY"
+
+headers = {
+    "apikey": SUPABASE_KEY,
+    "Authorization": f"Bearer {SUPABASE_KEY}",
+    "Content-Type": "application/json"
+}
 
 st.title("📝 Feedback Collector")
 
@@ -13,14 +19,23 @@ message = st.text_area("Your Feedback")
 
 if st.button("Submit"):
     if name and message:
-        data = {"name": name, "message": message}
-        supabase.table("feedback").insert(data).execute()
-        st.success("Feedback submitted!")
+        data = {
+            "name": name,
+            "message": message
+        }
+        res = requests.post(f"{SUPABASE_URL}/rest/v1/feedback", headers=headers, data=json.dumps(data))
+        if res.status_code == 201:
+            st.success("Feedback submitted!")
+        else:
+            st.error("Failed to submit feedback.")
     else:
-        st.error("Please fill in all fields.")
+        st.warning("Please fill out all fields.")
 
 st.subheader("📋 All Feedback:")
-feedback_data = supabase.table("feedback").select("*").order("inserted_at", desc=True).execute()
-for entry in feedback_data.data:
-    st.markdown(f"**{entry['name']}** said: {entry['message']}")
+res = requests.get(f"{SUPABASE_URL}/rest/v1/feedback?select=*", headers=headers)
 
+if res.status_code == 200:
+    for row in res.json():
+        st.markdown(f"**{row['name']}** said: {row['message']}")
+else:
+    st.error("Error loading feedback")
